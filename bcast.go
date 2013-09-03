@@ -24,16 +24,19 @@ import (
 	"time"
 )
 
+// Internal structure to pack messages together wit info about sender.
 type Message struct {
 	sender  *chan interface{}
 	payload interface{}
 }
 
+// Represents member of broadcast group.
 type Member struct {
 	group *Group            // send messages to others directly to group.In
 	In    *chan interface{} // get messages from others to own channel
 }
 
+// Represents broadcast group.
 type Group struct {
 	in  *chan Message       // receive broadcasts from members
 	out []*chan interface{} // broadcast messages to members
