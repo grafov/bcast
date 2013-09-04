@@ -49,8 +49,9 @@ func NewGroup() *Group {
 }
 
 // Broadcast messages received from one group member to others.
-// If not incoming messages during `timeout` then function returns. Set `timeout` to zero to skip timeout.
-func (r *Group) Broadcasting(timeout time.Duration) {
+// If incoming messages not arrived during `timeout` then function returns.
+// Set `timeout` to zero to set unlimited timeout or use Broadcasting().
+func (r *Group) BroadcastingTimeout(timeout time.Duration) {
 	for {
 		select {
 		case received := <-*r.in:

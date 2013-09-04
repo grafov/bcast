@@ -17,6 +17,10 @@ Firstly import package and create broadcast group. You may create any number of 
 
 			go bcast.Broadcasting(0) // accepts messages and broadcast it to all members
 
+You may listen broadcasts limited time:
+
+			bcast.Broadcasting(2 * time.Minute) // if message not arrived during 2 min. function exits
+
 Now join to the group from different goroutines:
 
 			member1 := group.Join() // joined member1 from one routine
