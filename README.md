@@ -47,4 +47,8 @@ Library licensed under GPLv3. See LICENSE.
 Project status
 --------------
 
+Code completed.
+
+[![Build Status](https://travis-ci.org/grafov/bcast.png?branch=master)](https://travis-ci.org/grafov/bcast)
+
 [![Is maintained?](http://stillmaintained.com/grafov/bcast.png)](http://stillmaintained.com/grafov/bcast)
