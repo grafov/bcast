@@ -85,13 +85,13 @@ func TestBroadcast(t *testing.T) {
 }
 
 // Create new broadcast group.
-// Join 1024 members.
+// Join 512 members.
 // Broadcast one integer from each member.
 func TestBroadcastOnLargeNumberOfMembers(t *testing.T) {
 	var valcount int
 
 	group := NewGroup()
-	for i := 1; i <= 1024; i++ {
+	for i := 1; i <= 512; i++ {
 		go func(i int, group *Group) {
 			m := group.Join()
 			m.Send(i)
@@ -105,7 +105,7 @@ func TestBroadcastOnLargeNumberOfMembers(t *testing.T) {
 		}(i, group)
 	}
 	group.Broadcasting(100 * time.Millisecond)
-	if valcount != 1024*1024-1024 { // number of channels * number of messages - number of channels
+	if valcount != 512*512-512 { // number of channels * number of messages - number of channels
 		panic("not all messages broadcasted")
 	}
 }
