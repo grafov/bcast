@@ -39,6 +39,11 @@ It may be convenient for example when `select` used.
 
 See more examples in a test suit `bcast_test.go`.
 
+Install
+-------
+
+`go get github.com/grafov/bcast`
+
 License
 -------
 
