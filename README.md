@@ -5,16 +5,15 @@ Broadcasting on a set of channels in Go. Go channels offer different usage patte
 This library solves the problem in direct way. Each routine keeps member structure with own input channel and single for all
 members output channel. Central dispatcher accepts broadcasts and resend them to all members.
 
-Usage example below.
+Usage
+-----
 
 Firstly import package and create broadcast group. You may create any number of groups for different broadcasts:
 
 			import (
-						 "github.com/grafov/bcast"
+				"github.com/grafov/bcast"
 			)
-
 			group := bcast.NewGroup() // create broadcast group
-
 			go bcast.Broadcasting(0) // accepts messages and broadcast it to all members
 
 You may listen broadcasts limited time:
