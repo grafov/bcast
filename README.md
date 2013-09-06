@@ -46,7 +46,7 @@ Install
 License
 -------
 
-Library licensed under GPLv3. See LICENSE.
+Library licensed under BSD 3-clause license. See LICENSE.
 
 Project status
 --------------
