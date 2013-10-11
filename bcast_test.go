@@ -79,7 +79,7 @@ func TestBroadcast(t *testing.T) {
 // Join 512 members.
 // Broadcast one integer from each member.
 func TestBroadcastOnLargeNumberOfMembers(t *testing.T) {
-	const max = 1024
+	const max = 512
 	var valcount int
 
 	group := NewGroup()
