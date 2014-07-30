@@ -10,7 +10,6 @@ package bcast
 */
 
 import (
-	// h "github.com/emicklei/hopwatch"
 	"testing"
 	"time"
 )
@@ -22,7 +21,7 @@ func TestNewGroupAndJoin(t *testing.T) {
 	member1 := group.Join()
 	member2 := group.Join()
 	if member1.group != member2.group {
-		panic("group for these members must be same")
+		t.Fatal("group for these members must be same")
 	}
 }
 
@@ -34,7 +33,7 @@ func TestUnjoin(t *testing.T) {
 	member1 := group.Join()
 	member2 := group.Join()
 	if len(group.out) != 2 {
-		panic("incorrect length of `out` slice")
+		t.Fatal("incorrect length of `out` slice")
 	}
 
 	go group.Broadcasting(0)
@@ -42,7 +41,7 @@ func TestUnjoin(t *testing.T) {
 	member1.Close()
 	time.Sleep(1 * time.Second) // because Broadcasting executed concurrently
 	if len(group.out) > 1 || group.out[0] != member2.In {
-		panic("unjoin member does not work")
+		t.Fatal("unjoin member does not work")
 	}
 }
 
@@ -62,7 +61,7 @@ func TestBroadcast(t *testing.T) {
 			for {
 				val := m.Recv()
 				if val.(int) == i {
-					panic("sent value was received by sender")
+					t.Fatal("sent value was received by sender")
 				}
 				valcount++
 			}
@@ -71,15 +70,15 @@ func TestBroadcast(t *testing.T) {
 
 	group.Broadcasting(100 * time.Millisecond)
 	if valcount != 12*12-12 { // number of channels * number of messages - number of channels
-		panic("not all messages broadcasted")
+		t.Fatal("not all messages broadcasted")
 	}
 }
 
 // Create new broadcast group.
-// Join 512 members.
+// Join 128 members.
 // Broadcast one integer from each member.
 func TestBroadcastOnLargeNumberOfMembers(t *testing.T) {
-	const max = 512
+	const max = 128
 	var valcount int
 
 	group := NewGroup()
@@ -90,14 +89,14 @@ func TestBroadcastOnLargeNumberOfMembers(t *testing.T) {
 			for {
 				val := m.Recv()
 				if val.(int) == i {
-					panic("sent value was received by sender")
+					t.Fatal("sent value should not received by sender")
 				}
 				valcount++
 			}
 		}(i, group)
 	}
-	group.Broadcasting(100 * time.Millisecond)
+	group.Broadcasting(1 * time.Second)
 	if valcount != max*max-max { // number of channels * number of messages - number of channels
-		panic("not all messages broadcasted")
+		t.Fatalf("not all messages broadcasted (%d/%d)", valcount, max*max-max)
 	}
 }
