@@ -75,8 +75,64 @@ func TestBroadcast(t *testing.T) {
 }
 
 // Create new broadcast group.
-// Join 128 members.
+// Join 12 members.
 // Broadcast one integer from each member.
+func TestBroadcastFromMember(t *testing.T) {
+	var valcount int
+
+	group := NewGroup()
+
+	for i := 1; i <= 12; i++ {
+		go func(i int, group *Group) {
+			m := group.Join()
+			m.Send(i)
+
+			for {
+				val := m.Recv()
+				if val.(int) == i {
+					t.Fatal("sent value was received by sender")
+				}
+				valcount++
+			}
+		}(i, group)
+	}
+
+	group.Broadcasting(100 * time.Millisecond)
+	if valcount != 12*12-12 { // number of channels * number of messages - number of channels
+		t.Fatal("not all messages broadcasted")
+	}
+}
+
+// Create new broadcast group.
+// Join 12 members.
+// Make group broadcast to all group members.
+func TestGroupBroadcast(t *testing.T) {
+	var valcount int
+
+	group := NewGroup()
+
+	for i := 1; i <= 12; i++ {
+		go func(i int, group *Group) {
+			m := group.Join()
+			if val := m.Recv(); val != "group message" {
+				t.Fatal("incorrect message received")
+			}
+			valcount++
+		}(i, group)
+	}
+
+	go group.Broadcasting(200 * time.Millisecond)
+	group.Send("group message")
+	time.Sleep(150 * time.Millisecond)
+
+	if valcount != 12 {
+		t.Fatal("not all messages broadcasted")
+	}
+}
+
+// Create new broadcast group.
+// Join 128 members.
+// Make group broadcast to all members.
 func TestBroadcastOnLargeNumberOfMembers(t *testing.T) {
 	const max = 128
 	var valcount int
@@ -87,14 +143,14 @@ func TestBroadcastOnLargeNumberOfMembers(t *testing.T) {
 			m := group.Join()
 			m.Send(i)
 			for {
-				val := m.Recv()
-				if val.(int) == i {
+				if val := m.Recv(); val.(int) == i {
 					t.Fatal("sent value should not received by sender")
 				}
 				valcount++
 			}
 		}(i, group)
 	}
+
 	group.Broadcasting(1 * time.Second)
 	if valcount != max*max-max { // number of channels * number of messages - number of channels
 		t.Fatalf("not all messages broadcasted (%d/%d)", valcount, max*max-max)

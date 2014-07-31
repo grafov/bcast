@@ -47,7 +47,7 @@ func (r *Group) Broadcasting(timeout time.Duration) {
 		select {
 		case received := <-r.in:
 			switch received.payload.(type) {
-			case Member: // unjoining member
+			case Member: // unjoin a member
 
 				for i, addr := range r.out {
 					if addr == received.payload.(Member).In && received.sender == received.payload.(Member).In {
@@ -55,7 +55,7 @@ func (r *Group) Broadcasting(timeout time.Duration) {
 						break
 					}
 				}
-			default: // receive payload and broadcast it
+			default: // receive a payload and broadcast it
 
 				for _, member := range r.out {
 					if received.sender != member { // not return broadcast to sender
@@ -75,6 +75,11 @@ func (r *Group) Broadcasting(timeout time.Duration) {
 	}
 }
 
+// Broadcast message to all group members.
+func (r *Group) Send(val interface{}) {
+	r.in <- Message{sender: nil, payload: val}
+}
+
 // Join new member to broadcast.
 func (r *Group) Join() *Member {
 	out := make(chan interface{})
@@ -87,12 +92,12 @@ func (r *Member) Close() {
 	r.group.in <- Message{sender: r.In, payload: *r} // broadcasting of self means member closing
 }
 
-// Broadcast Message to others.
+// Broadcast message from one member to others except sender.
 func (r *Member) Send(val interface{}) {
 	r.group.in <- Message{sender: r.In, payload: val}
 }
 
-// Get broadcast Message.
+// Get broadcast message.
 // As alternative you may get it from `In` channel.
 func (r *Member) Recv() interface{} {
 	return <-r.In
