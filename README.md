@@ -1,4 +1,4 @@
-bcast package for Go
+bcast package for Go [![Is maintained?](http://stillmaintained.com/grafov/bcast.png)](http://stillmaintained.com/grafov/bcast)
 ====================
 
 Broadcasting on a set of channels in Go. Go channels offer different usage patterns but not ready to use broadcast pattern.
@@ -13,6 +13,7 @@ Firstly import package and create broadcast group. You may create any number of 
 			import (
 				"github.com/grafov/bcast"
 			)
+
 			group := bcast.NewGroup() // create broadcast group
 			go bcast.Broadcasting(0) // accepts messages and broadcast it to all members
 
@@ -23,9 +24,16 @@ You may listen broadcasts limited time:
 Now join to the group from different goroutines:
 
 			member1 := group.Join() // joined member1 from one routine
-			member1.Send("test message") // broadcast message
 
-Method `bcast.Send` accepts `interface{}` type so any values may be broadcasted.
+Either member may send message which received by all other members of the group:
+
+			member1.Send("test message") // send message to all members
+
+Also you may send message to group from nonmember of a group:
+
+			group.Send("test message")
+
+Method `Send` accepts `interface{}` type so any values may be broadcasted.
 
 			member2 := group.Join() // joined member2 form another routine
 			val := member1.Recv() // broadcasted value received
@@ -43,6 +51,8 @@ Install
 
 `go get github.com/grafov/bcast`
 
+No external dependencies beside standard packages.
+
 License
 -------
 
@@ -51,8 +61,6 @@ Library licensed under BSD 3-clause license. See LICENSE.
 Project status
 --------------
 
-Code completed.
+API is stable. No major changes planned, maybe small improvements.
 
 [![Build Status](https://travis-ci.org/grafov/bcast.png?branch=master)](https://travis-ci.org/grafov/bcast)
-
-[![Is maintained?](http://stillmaintained.com/grafov/bcast.png)](http://stillmaintained.com/grafov/bcast)
