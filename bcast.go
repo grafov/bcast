@@ -11,11 +11,10 @@ package bcast
 */
 
 import (
-	// 	h "github.com/emicklei/hopwatch"
 	"time"
 )
 
-// Internal structure to pack messages together wit info about sender.
+// Internal structure to pack messages together with info about sender.
 type Message struct {
 	sender  chan interface{}
 	payload interface{}
@@ -24,7 +23,7 @@ type Message struct {
 // Represents member of broadcast group.
 type Member struct {
 	group *Group           // send messages to others directly to group.In
-	In    chan interface{} // get messages from others to own channel
+	In    chan interface{} // (public) get messages from others to own channel
 }
 
 // Represents broadcast group.
