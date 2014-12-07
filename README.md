@@ -5,7 +5,7 @@ Broadcasting on a set of channels in Go. Go channels offer different usage patte
 This library solves the problem in direct way. Each routine keeps member structure with own input channel and single for all
 members output channel. Central dispatcher accepts broadcasts and resend them to all members.
 
-Usage
+Usage [![Go Walker](http://img.shields.io/badge/docs-API-brightgreen.svg?style=flat)](http://gowalker.org/github.com/grafov/bcast)
 -----
 
 Firstly import package and create broadcast group. You may create any number of groups for different broadcasts:
@@ -46,8 +46,6 @@ It may be convenient for example when `select` used.
 
 See more examples in a test suit `bcast_test.go`.
 
-[![Go Walker](http://img.shields.io/badge/docs-API-brightgreen.svg?style=flat)](http://gowalker.org/github.com/grafov/bcast)
-
 Install
 -------
 
@@ -60,9 +58,7 @@ License
 
 Library licensed under BSD 3-clause license. See LICENSE.
 
-Project status [![Is maintained?](http://stillmaintained.com/grafov/bcast.png)](http://stillmaintained.com/grafov/bcast)
+Project status [![Build Status](https://img.shields.io/travis/grafov/bcast/master.svg?style=flat)](https://travis-ci.org/grafov/bcast)
 --------------
 
 API is stable. No major changes planned, maybe small improvements.
-
-[![Build Status](https://img.shields.io/travis/grafov/bcast/master.svg?style=flat)](https://travis-ci.org/grafov/bcast)
