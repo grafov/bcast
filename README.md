@@ -1,4 +1,4 @@
-bcast package for Go [![Is maintained?](http://stillmaintained.com/grafov/bcast.png)](http://stillmaintained.com/grafov/bcast)
+bcast package for Go
 ====================
 
 Broadcasting on a set of channels in Go. Go channels offer different usage patterns but not ready to use broadcast pattern.
@@ -46,6 +46,8 @@ It may be convenient for example when `select` used.
 
 See more examples in a test suit `bcast_test.go`.
 
+[![Go Walker](http://img.shields.io/badge/docs-API-green.svg)](http://gowalker.org/github.com/grafov/bcast)
+
 Install
 -------
 
@@ -58,9 +60,9 @@ License
 
 Library licensed under BSD 3-clause license. See LICENSE.
 
-Project status
+Project status [![Is maintained?](http://stillmaintained.com/grafov/bcast.png)](http://stillmaintained.com/grafov/m3u8)
 --------------
 
 API is stable. No major changes planned, maybe small improvements.
 
-[![Build Status](https://travis-ci.org/grafov/bcast.png?branch=master)](https://travis-ci.org/grafov/bcast)
+[![Build Status](https://img.shields.io/travis/grafov/bcast/master.svg?style=flat)](https://travis-ci.org/grafov/bcast)
