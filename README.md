@@ -46,7 +46,7 @@ It may be convenient for example when `select` used.
 
 See more examples in a test suit `bcast_test.go`.
 
-[![Go Walker](http://img.shields.io/badge/docs-API-green.svg)](http://gowalker.org/github.com/grafov/bcast)
+[![Go Walker](http://img.shields.io/badge/docs-API-brightgreen.svg?style=flat)](http://gowalker.org/github.com/grafov/bcast)
 
 Install
 -------
