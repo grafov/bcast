@@ -60,7 +60,7 @@ License
 
 Library licensed under BSD 3-clause license. See LICENSE.
 
-Project status [![Is maintained?](http://stillmaintained.com/grafov/bcast.png)](http://stillmaintained.com/grafov/m3u8)
+Project status [![Is maintained?](http://stillmaintained.com/grafov/bcast.png)](http://stillmaintained.com/grafov/bcast)
 --------------
 
 API is stable. No major changes planned, maybe small improvements.
