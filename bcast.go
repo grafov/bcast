@@ -12,6 +12,7 @@ package bcast
 
 import (
 	"time"
+	"sync"
 )
 
 // Internal structure to pack messages together with info about sender.
@@ -28,14 +29,42 @@ type Member struct {
 
 // Represents broadcast group.
 type Group struct {
+	l   sync.Mutex
 	in  chan Message       // receive broadcasts from members
 	out []chan interface{} // broadcast messages to members
+
 }
 
 // Create new broadcast group.
 func NewGroup() *Group {
 	in := make(chan Message)
 	return &Group{in: in}
+}
+
+func (r *Group) Members() []chan interface{} {
+	r.l.Lock()
+	res := r.out[:]
+	r.l.Unlock()
+	return res
+}
+
+func (r *Group) Add(out chan interface{}) {
+	r.l.Lock()
+	r.out = append(r.out, out)
+	r.l.Unlock()
+	return
+}
+
+func (r *Group) Remove(received Message) {
+	r.l.Lock()
+	for i, addr := range r.out {
+		if addr == received.payload.(Member).In && received.sender == received.payload.(Member).In {
+			r.out = append(r.out[:i], r.out[i+1:]...)
+			break
+		}
+	}
+	r.l.Unlock()
+	return
 }
 
 // Broadcast messages received from one group member to others.
@@ -46,25 +75,16 @@ func (r *Group) Broadcasting(timeout time.Duration) {
 		select {
 		case received := <-r.in:
 			switch received.payload.(type) {
-			case Member: // unjoin a member
-
-				for i, addr := range r.out {
-					if addr == received.payload.(Member).In && received.sender == received.payload.(Member).In {
-						r.out = append(r.out[:i], r.out[i+1:]...)
-						break
-					}
-				}
 			default: // receive a payload and broadcast it
+					for _, member := range r.Members() {
+						if received.sender != member { // not return broadcast to sender
 
-				for _, member := range r.out {
-					if received.sender != member { // not return broadcast to sender
+							go func(out chan interface{}, received *Message) { // non blocking
+								out <- received.payload
+							}(member, &received)
 
-						go func(out chan interface{}, received *Message) { // non blocking
-							out <- received.payload
-						}(member, &received)
-
+						}
 					}
-				}
 			}
 		case <-time.After(timeout):
 			if timeout > 0 {
@@ -82,13 +102,15 @@ func (r *Group) Send(val interface{}) {
 // Join new member to broadcast.
 func (r *Group) Join() *Member {
 	out := make(chan interface{})
-	r.out = append(r.out, out)
+	r.Add(out)
+	//r.out = append(r.out, out)
 	return &Member{group: r, In: out}
 }
 
 // Unjoin member from broadcast group.
 func (r *Member) Close() {
-	r.group.in <- Message{sender: r.In, payload: *r} // broadcasting of self means member closing
+	r.group.Remove(Message{sender: r.In, payload: *r})
+	//r.group.in <- Message{sender: r.In, payload: *r} // broadcasting of self means member closing
 }
 
 // Broadcast message from one member to others except sender.

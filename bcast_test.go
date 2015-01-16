@@ -12,6 +12,7 @@ package bcast
 import (
 	"testing"
 	"time"
+	"sync"
 )
 
 // Create new broadcast group.
@@ -36,25 +37,36 @@ func TestUnjoin(t *testing.T) {
 		t.Fatal("incorrect length of `out` slice")
 	}
 
-	go group.Broadcasting(0)
+	go group.Broadcasting(2 * time.Second)
 
 	member1.Close()
-	time.Sleep(1 * time.Second) // because Broadcasting executed concurrently
 	if len(group.out) > 1 || group.out[0] != member2.In {
 		t.Fatal("unjoin member does not work")
 	}
+}
+
+type Adder struct {
+	count int
+	l sync.Mutex
+}
+
+func (a *Adder) Add(c int) {
+	a.l.Lock()
+	a.count += c
+	a.l.Unlock()
 }
 
 // Create new broadcast group.
 // Join 12 members.
 // Broadcast one integer from each member.
 func TestBroadcast(t *testing.T) {
-	var valcount int
+	var valcount Adder
+	valcount.count = 0
 
 	group := NewGroup()
 
 	for i := 1; i <= 12; i++ {
-		go func(i int, group *Group) {
+		go func(i int) {
 			m := group.Join()
 			m.Send(i)
 
@@ -63,13 +75,13 @@ func TestBroadcast(t *testing.T) {
 				if val.(int) == i {
 					t.Fatal("sent value was received by sender")
 				}
-				valcount++
+				valcount.Add(1)
 			}
-		}(i, group)
+		}(i)
 	}
 
 	group.Broadcasting(100 * time.Millisecond)
-	if valcount != 12*12-12 { // number of channels * number of messages - number of channels
+	if valcount.count != 12*12-12 { // number of channels * number of messages - number of channels
 		t.Fatal("not all messages broadcasted")
 	}
 }
@@ -140,7 +152,7 @@ func TestBroadcastOnLargeNumberOfMembers(t *testing.T) {
 	group := NewGroup()
 	for i := 1; i <= max; i++ {
 		go func(i int, group *Group) {
-			m := group.Join()
+			m := group.Join() // here is the problem
 			m.Send(i)
 			for {
 				if val := m.Recv(); val.(int) == i {
