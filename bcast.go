@@ -32,6 +32,7 @@ type Group struct {
 	l   sync.Mutex
 	in  chan Message       // receive broadcasts from members
 	out []chan interface{} // broadcast messages to members
+	count int
 
 }
 
@@ -41,9 +42,15 @@ func NewGroup() *Group {
 	return &Group{in: in}
 }
 
+func (r *Group) MemberCount() int {
+	return r.count
+}
+
+
 func (r *Group) Members() []chan interface{} {
 	r.l.Lock()
 	res := r.out[:]
+	r.count = len(r.out)
 	r.l.Unlock()
 	return res
 }
@@ -51,6 +58,7 @@ func (r *Group) Members() []chan interface{} {
 func (r *Group) Add(out chan interface{}) {
 	r.l.Lock()
 	r.out = append(r.out, out)
+	r.count = len(r.out)
 	r.l.Unlock()
 	return
 }
