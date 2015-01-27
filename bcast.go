@@ -68,6 +68,7 @@ func (r *Group) Remove(received Message) {
 	for i, addr := range r.out {
 		if addr == received.payload.(Member).In && received.sender == received.payload.(Member).In {
 			r.out = append(r.out[:i], r.out[i+1:]...)
+      r.count = len(r.out)
 			break
 		}
 	}
