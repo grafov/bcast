@@ -13,6 +13,7 @@ package bcast
 import (
 	"time"
 	"sync"
+  //"fmt"
 )
 
 // Internal structure to pack messages together with info about sender.
@@ -25,6 +26,7 @@ type Message struct {
 type Member struct {
 	group *Group           // send messages to others directly to group.In
 	In    chan interface{} // (public) get messages from others to own channel
+  //NonReceived int
 }
 
 // Represents broadcast group.
@@ -87,11 +89,13 @@ func (r *Group) Broadcasting(timeout time.Duration) {
 			default: // receive a payload and broadcast it
 					for _, member := range r.Members() {
 						if received.sender != member { // not return broadcast to sender
-
-							go func(out chan interface{}, received *Message) { // non blocking
-								out <- received.payload
-							}(member, &received)
-
+              
+              select {
+                case member <- received.payload:
+                  //fmt.Println("sent message", received.payload)
+                default:
+                  //fmt.Println("no message sent")
+              }
 						}
 					}
 			}
