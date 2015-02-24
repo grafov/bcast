@@ -13,6 +13,7 @@ package bcast
 import (
 	"time"
 	"sync"
+  //"fmt"
 )
 
 // Internal structure to pack messages together with info about sender.
@@ -25,6 +26,7 @@ type Message struct {
 type Member struct {
 	group *Group           // send messages to others directly to group.In
 	In    chan interface{} // (public) get messages from others to own channel
+  //NonReceived int
 }
 
 // Represents broadcast group.
@@ -32,6 +34,7 @@ type Group struct {
 	l   sync.Mutex
 	in  chan Message       // receive broadcasts from members
 	out []chan interface{} // broadcast messages to members
+	count int
 
 }
 
@@ -41,9 +44,15 @@ func NewGroup() *Group {
 	return &Group{in: in}
 }
 
+func (r *Group) MemberCount() int {
+	return r.count
+}
+
+
 func (r *Group) Members() []chan interface{} {
 	r.l.Lock()
 	res := r.out[:]
+	r.count = len(r.out)
 	r.l.Unlock()
 	return res
 }
@@ -51,6 +60,7 @@ func (r *Group) Members() []chan interface{} {
 func (r *Group) Add(out chan interface{}) {
 	r.l.Lock()
 	r.out = append(r.out, out)
+	r.count = len(r.out)
 	r.l.Unlock()
 	return
 }
@@ -60,6 +70,7 @@ func (r *Group) Remove(received Message) {
 	for i, addr := range r.out {
 		if addr == received.payload.(Member).In && received.sender == received.payload.(Member).In {
 			r.out = append(r.out[:i], r.out[i+1:]...)
+      r.count = len(r.out)
 			break
 		}
 	}
@@ -78,11 +89,13 @@ func (r *Group) Broadcasting(timeout time.Duration) {
 			default: // receive a payload and broadcast it
 					for _, member := range r.Members() {
 						if received.sender != member { // not return broadcast to sender
-
-							go func(out chan interface{}, received *Message) { // non blocking
-								out <- received.payload
-							}(member, &received)
-
+              
+              select {
+                case member <- received.payload:
+                  //fmt.Println("sent message", received.payload)
+                default:
+                  //fmt.Println("no message sent")
+              }
 						}
 					}
 			}
