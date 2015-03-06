@@ -15,7 +15,7 @@ Firstly import package and create broadcast group. You may create any number of 
 			)
 
 			group := bcast.NewGroup() // create broadcast group
-			go bcast.Broadcasting(0) // accepts messages and broadcast it to all members
+			go group.Broadcasting(0) // accepts messages and broadcast it to all members
 
 You may listen broadcasts limited time:
 
