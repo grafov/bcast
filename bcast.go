@@ -11,9 +11,9 @@ package bcast
 */
 
 import (
-	"time"
 	"sync"
-  //"fmt"
+	"time"
+	//"fmt"
 )
 
 // Internal structure to pack messages together with info about sender.
@@ -26,28 +26,28 @@ type Message struct {
 type Member struct {
 	group *Group           // send messages to others directly to group.In
 	In    chan interface{} // (public) get messages from others to own channel
-  //NonReceived int
+	//NonReceived int
 }
 
 // Represents broadcast group.
 type Group struct {
-	l   sync.Mutex
-	in  chan Message       // receive broadcasts from members
-	out []chan interface{} // broadcast messages to members
+	l     sync.Mutex
+	in    chan Message       // receive broadcasts from members
+	out   []chan interface{} // broadcast messages to members
 	count int
-
+	close chan bool
 }
 
 // Create new broadcast group.
 func NewGroup() *Group {
 	in := make(chan Message)
-	return &Group{in: in}
+	close := make(chan bool)
+	return &Group{in: in, close: close}
 }
 
 func (r *Group) MemberCount() int {
 	return r.count
 }
-
 
 func (r *Group) Members() []chan interface{} {
 	r.l.Lock()
@@ -70,12 +70,17 @@ func (r *Group) Remove(received Message) {
 	for i, addr := range r.out {
 		if addr == received.payload.(Member).In && received.sender == received.payload.(Member).In {
 			r.out = append(r.out[:i], r.out[i+1:]...)
-      r.count = len(r.out)
+			r.count = len(r.out)
 			break
 		}
 	}
 	r.l.Unlock()
 	return
+}
+
+// Close the group immediately
+func (r *Group) Close() {
+	r.close <- true
 }
 
 // Broadcast messages received from one group member to others.
@@ -87,21 +92,60 @@ func (r *Group) Broadcasting(timeout time.Duration) {
 		case received := <-r.in:
 			switch received.payload.(type) {
 			default: // receive a payload and broadcast it
-					for _, member := range r.Members() {
-						if received.sender != member { // not return broadcast to sender
-              
-              select {
-                case member <- received.payload:
-                  //fmt.Println("sent message", received.payload)
-                default:
-                  //fmt.Println("no message sent")
-              }
-						}
+				for _, member := range r.Members() {
+					if received.sender != member { // not return broadcast to sender
+
+						/*
+							select {
+							case member <- received.payload:
+								fmt.Println("sent message", received.payload)
+							default:
+								fmt.Println("no message sent")
+							}
+						*/
+						go func(out chan interface{}, received *Message) { // non blocking
+							out <- received.payload
+						}(member, &received)
+
 					}
+				}
 			}
 		case <-time.After(timeout):
 			if timeout > 0 {
 				return
+			}
+		case <-r.close:
+			return
+		}
+	}
+}
+
+// Broadcast messages received from one group member to others.
+// See https://github.com/NimbleIndustry/bcast/issues/4 for rationale
+func (r *Group) ContinuousBroadcasting() {
+	for {
+		select {
+		case <-r.close:
+			return
+		case received := <-r.in:
+			switch received.payload.(type) {
+			default: // receive a payload and broadcast it
+				for _, member := range r.Members() {
+					if received.sender != member { // not return broadcast to sender
+
+						/*
+							select {
+							case member <- received.payload:
+								//fmt.Println("sent message", received.payload)
+							default:
+								//fmt.Println("no message sent")
+							}
+						*/
+						go func(out chan interface{}, received *Message) { // non blocking
+							out <- received.payload
+						}(member, &received)
+					}
+				}
 			}
 		}
 	}
