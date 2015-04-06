@@ -83,10 +83,18 @@ func (r *Group) Close() {
 	r.close <- true
 }
 
+// Obsoleted by BroadcastFor()
+func (r *Group) Broadcasting(timeout time.Duration) {
+	r.BroadcastFor(timeout)
+}
+
 // Broadcast messages received from one group member to others.
 // If incoming messages not arrived during `timeout` then function returns.
-// Set `timeout` to zero to set unlimited timeout or use Broadcasting().
-func (r *Group) Broadcasting(timeout time.Duration) {
+func (r *Group) BroadcastFor(timeout time.Duration) {
+	if timeout == 0 {
+		r.Broadcast()
+		return
+	}
 	for {
 		select {
 		case received := <-r.in:
@@ -121,8 +129,8 @@ func (r *Group) Broadcasting(timeout time.Duration) {
 }
 
 // Broadcast messages received from one group member to others.
-// See https://github.com/NimbleIndustry/bcast/issues/4 for rationale
-func (r *Group) ContinuousBroadcasting() {
+// See https://github.com/grafov/bcast/issues/4 for rationale.
+func (r *Group) Broadcast() {
 	for {
 		select {
 		case <-r.close:
