@@ -5,13 +5,13 @@ Broadcasting on a set of channels in Go. Go channels offer different usage patte
 This library solves the problem in direct way. Each routine keeps member structure with own input channel and single for all
 members output channel. Central dispatcher accepts broadcasts and resend them to all members.
 
-Usage [![Go Walker](http://img.shields.io/badge/docs-API-brightgreen.svg?style=flat)](http://gowalker.org/github.com/grafov/bcast)
+Usage [![Go Walker](http://img.shields.io/badge/docs-API-brightgreen.svg?style=flat)](http://gowalker.org/github.com/NimbleIndustry/bcast)
 -----
 
 Firstly import package and create broadcast group. You may create any number of groups for different broadcasts:
 
 			import (
-				"github.com/grafov/bcast"
+				"github.com/NimbleIndustry/bcast"
 			)
 
 			group := bcast.NewGroup() // create broadcast group
@@ -49,7 +49,7 @@ See more examples in a test suit `bcast_test.go`.
 Install
 -------
 
-`go get github.com/grafov/bcast`
+`go get github.com/NimbleIndustry/bcast`
 
 No external dependencies beside standard packages.
 
