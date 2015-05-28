@@ -11,7 +11,7 @@ Usage [![Go Walker](http://img.shields.io/badge/docs-API-brightgreen.svg?style=f
 Firstly import package and create broadcast group. You may create any number of groups for different broadcasts:
 
 			import (
-				"github.com/NimbleIndustry/bcast"
+				"github.com/grafov/bcast"
 			)
 
 			group := bcast.NewGroup() // create broadcast group
@@ -49,7 +49,7 @@ See more examples in a test suit `bcast_test.go`.
 Install
 -------
 
-`go get github.com/NimbleIndustry/bcast`
+`go get github.com/grafov/bcast`
 
 No external dependencies beside standard packages.
 
