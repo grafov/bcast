@@ -1,4 +1,3 @@
-// Broadcast over channels.
 package bcast
 
 /*
@@ -11,180 +10,206 @@ package bcast
 */
 
 import (
+	"container/heap"
+	"errors"
 	"sync"
 	"time"
-	//"fmt"
 )
 
-// Internal structure to pack messages together with info about sender.
+// Message is an internal structure to pack messages together with
+// info about sender.
 type Message struct {
-	sender  chan interface{}
+	sender  *Member
 	payload interface{}
+	clock   int
 }
 
-// Represents member of broadcast group.
+// Member represents member of a Broadcast group.
 type Member struct {
-	group *Group           // send messages to others directly to group.In
-	In    chan interface{} // (public) get messages from others to own channel
-	//NonReceived int
+	group        *Group
+	Read         chan interface{}
+	clock        int
+	messageQueue PriorityQueue
+	send         chan Message
+	close        chan bool
 }
 
-// Represents broadcast group.
+// Group provides a mechanism for the broadcast of messages to a
+// collection of channels.
 type Group struct {
-	l     sync.Mutex
-	in    chan Message       // receive broadcasts from members
-	out   []chan interface{} // broadcast messages to members
-	count int
-	close chan bool
+	in         chan Message
+	close      chan bool
+	members    []*Member
+	clock      int
+	memberLock sync.Mutex
+	clockLock  sync.Mutex
 }
 
-// Create new broadcast group.
+// NewGroup creates a new broadcast group.
 func NewGroup() *Group {
 	in := make(chan Message)
 	close := make(chan bool)
-	return &Group{in: in, close: close}
+	return &Group{in: in, close: close, clock: 0}
 }
 
-func (r *Group) MemberCount() int {
-	return r.count
+// MemberCount returns the number of members in the Broadcast Group.
+func (g *Group) MemberCount() int {
+	return len(g.Members())
 }
 
-func (r *Group) Members() []chan interface{} {
-	r.l.Lock()
-	res := r.out[:]
-	r.count = len(r.out)
-	r.l.Unlock()
+// Members returns a slice of Members that are currently in the Group.
+func (g *Group) Members() []*Member {
+	g.memberLock.Lock()
+	res := g.members[:]
+	g.memberLock.Unlock()
 	return res
 }
 
-func (r *Group) Add(out chan interface{}) {
-	r.l.Lock()
-	r.out = append(r.out, out)
-	r.count = len(r.out)
-	r.l.Unlock()
-	return
+// Join returns a new member object and handles the creation of its
+// output channel.
+func (g *Group) Join() *Member {
+	memberChannel := make(chan interface{})
+	return g.Add(memberChannel)
 }
 
-func (r *Group) Remove(received Message) {
-	r.l.Lock()
-	for i, addr := range r.out {
-		if addr == received.payload.(Member).In && received.sender == received.payload.(Member).In {
-			r.out = append(r.out[:i], r.out[i+1:]...)
-			r.count = len(r.out)
+// Leave removes the provided member from the group
+func (g *Group) Leave(leaving *Member) error {
+	g.memberLock.Lock()
+	memberIndex := -1
+	for index, member := range g.members {
+		if member == leaving {
+			memberIndex = index
 			break
 		}
 	}
-	r.l.Unlock()
-	return
+	if memberIndex == -1 {
+		return errors.New("Could not find provided memeber for removal")
+	}
+	g.members = append(g.members[:memberIndex], g.members[memberIndex+1:]...)
+	leaving.close <- true // TODO: need to handle the case where there
+	// is still stuff in this Members priorityQueue
+	g.memberLock.Unlock()
+	return nil
 }
 
-// Close the group immediately
-func (r *Group) Close() {
-	r.close <- true
+// Add adds a member to the group for the provided interface channel.
+func (g *Group) Add(memberChannel chan interface{}) *Member {
+	g.memberLock.Lock()
+	g.clockLock.Lock()
+	member := &Member{
+		group:        g,
+		Read:         memberChannel,
+		clock:        g.clock,
+		messageQueue: PriorityQueue{},
+		send:         make(chan Message),
+		close:        make(chan bool),
+	}
+	go member.listen()
+	g.members = append(g.members, member)
+	g.clockLock.Unlock()
+	g.memberLock.Unlock()
+	return member
 }
 
-// Obsoleted by BroadcastFor()
-func (r *Group) Broadcasting(timeout time.Duration) {
-	r.BroadcastFor(timeout)
+// Close terminates the group immediately.
+func (g *Group) Close() {
+	g.close <- true
 }
 
 // Broadcast messages received from one group member to others.
 // If incoming messages not arrived during `timeout` then function returns.
-func (r *Group) BroadcastFor(timeout time.Duration) {
-	if timeout == 0 {
-		r.Broadcast()
-		return
+func (g *Group) Broadcast(timeout time.Duration) {
+	var timeoutChannel <-chan time.Time
+	if timeout != 0 {
+		timeoutChannel = time.After(timeout)
 	}
 	for {
 		select {
-		case received := <-r.in:
-			switch received.payload.(type) {
-			default: // receive a payload and broadcast it
-				for _, member := range r.Members() {
-					if received.sender != member { // not return broadcast to sender
-
-						/*
-							select {
-							case member <- received.payload:
-								fmt.Println("sent message", received.payload)
-							default:
-								fmt.Println("no message sent")
-							}
-						*/
-						go func(out chan interface{}, received *Message) { // non blocking
-							out <- received.payload
-						}(member, &received)
-
-					}
-				}
+		case received := <-g.in:
+			g.memberLock.Lock()
+			g.clockLock.Lock()
+			members := g.members[:]
+			received.clock = g.clock
+			g.clock++
+			g.clockLock.Unlock()
+			g.memberLock.Unlock()
+			for _, member := range members {
+				// This is done in a goroutine because if it
+				// weren't it would be a blocking call
+				go func(member *Member, received Message) {
+					member.send <- received
+				}(member, received)
 			}
-		case <-time.After(timeout):
+		case <-timeoutChannel:
 			if timeout > 0 {
 				return
 			}
-		case <-r.close:
+		case <-g.close:
 			return
 		}
 	}
 }
 
-// Broadcast messages received from one group member to others.
-// See https://github.com/grafov/bcast/issues/4 for rationale.
-func (r *Group) Broadcast() {
+// Send broadcasts a message to every one of a Group's members.
+func (g *Group) Send(val interface{}) {
+	g.in <- Message{sender: nil, payload: val}
+}
+
+// Close removes the member it is called on from its broadcast group.
+func (m *Member) Close() {
+	m.group.Leave(m)
+}
+
+// Send broadcasts a message from one Member to the channels of all
+// the other members in its group.
+func (m *Member) Send(val interface{}) {
+	m.group.in <- Message{sender: m, payload: val}
+}
+
+// Recv reads one value from the member's Read channel
+func (m *Member) Recv() interface{} {
+	return <-m.Read
+}
+
+func (m *Member) listen() {
 	for {
 		select {
-		case <-r.close:
+		case message := <-m.send:
+			m.handleMessage(&message)
+		case <-m.close:
 			return
-		case received := <-r.in:
-			switch received.payload.(type) {
-			default: // receive a payload and broadcast it
-				for _, member := range r.Members() {
-					if received.sender != member { // not return broadcast to sender
+		}
+	}
+}
 
-						/*
-							select {
-							case member <- received.payload:
-								//fmt.Println("sent message", received.payload)
-							default:
-								//fmt.Println("no message sent")
-							}
-						*/
-						go func(out chan interface{}, received *Message) { // non blocking
-							out <- received.payload
-						}(member, &received)
-					}
-				}
+func (m *Member) handleMessage(message *Message) {
+	if !m.trySend(message) {
+		heap.Push(&m.messageQueue, &Item{
+			priority: message.clock,
+			value:    message,
+		})
+		return
+	}
+	if m.messageQueue.Len() > 0 {
+		nextMessage := m.messageQueue[0].value.(*Message)
+		for m.trySend(nextMessage) {
+			heap.Pop(&m.messageQueue)
+			if m.messageQueue.Len() > 0 {
+				nextMessage = m.messageQueue[0].value.(*Message)
+			} else {
+				break
 			}
 		}
 	}
 }
 
-// Broadcast message to all group members.
-func (r *Group) Send(val interface{}) {
-	r.in <- Message{sender: nil, payload: val}
-}
-
-// Join new member to broadcast.
-func (r *Group) Join() *Member {
-	out := make(chan interface{})
-	r.Add(out)
-	//r.out = append(r.out, out)
-	return &Member{group: r, In: out}
-}
-
-// Unjoin member from broadcast group.
-func (r *Member) Close() {
-	r.group.Remove(Message{sender: r.In, payload: *r})
-	//r.group.in <- Message{sender: r.In, payload: *r} // broadcasting of self means member closing
-}
-
-// Broadcast message from one member to others except sender.
-func (r *Member) Send(val interface{}) {
-	r.group.in <- Message{sender: r.In, payload: val}
-}
-
-// Get broadcast message.
-// As alternative you may get it from `In` channel.
-func (r *Member) Recv() interface{} {
-	return <-r.In
+func (m *Member) trySend(message *Message) bool {
+	shouldSend := message.clock == m.clock
+	if shouldSend {
+		if message.sender != m {
+			m.Read <- message.payload
+		}
+		m.clock++
+	}
+	return shouldSend
 }
