@@ -10,7 +10,7 @@ package bcast
 */
 
 import (
-	"sync"
+	"gopkg.in/fatih/set.v0"
 	"testing"
 	"time"
 )
@@ -33,93 +33,58 @@ func TestUnjoin(t *testing.T) {
 	group := NewGroup()
 	member1 := group.Join()
 	member2 := group.Join()
-	if len(group.out) != 2 {
+	if len(group.members) != 2 {
 		t.Fatal("incorrect length of `out` slice")
 	}
-
-	go group.Broadcasting(2 * time.Second)
+	go group.Broadcast(2 * time.Second)
 
 	member1.Close()
-	if len(group.out) > 1 || group.out[0] != member2.In {
+	if len(group.members) > 1 || group.members[0] != member2 {
 		t.Fatal("unjoin member does not work")
 	}
 }
 
-type Adder struct {
-	count int
-	l     sync.Mutex
-}
-
-func (a *Adder) Add(c int) {
-	a.l.Lock()
-	a.count += c
-	a.l.Unlock()
-}
-
-func (a *Adder) Count() (c int) {
-	a.l.Lock()
-	c = a.count
-	a.l.Unlock()
-	return c
-}
-
 // Create new broadcast group.
 // Join 12 members.
-// Broadcast one integer from each member.
-func TestBroadcast(t *testing.T) {
-	var valcount Adder
-	valcount.count = 0
-
+// Make group broadcast to all group members.
+func TestMemberBroadcast(t *testing.T) {
 	group := NewGroup()
+	var channels []chan bool
+	max := 12
+	broadcaster := 3
 
-	for i := 1; i <= 12; i++ {
-		go func(i int) {
-			m := group.Join()
-			m.Send(i)
+	for i := 0; i <= max; i++ {
+		c := make(chan bool)
+		channels = append(channels, c)
+	}
 
-			for {
+	for i, c := range channels {
+		m := group.Join()
+		go func(i int, group *Group, channel chan bool, member *Member) {
+			if i == broadcaster {
+				m.Send(i)
+			} else {
 				val := m.Recv()
-				if val.(int) == i {
-					t.Fatal("sent value was received by sender")
+				if val != broadcaster {
+					t.Fatal("incorrect message received")
 				}
-				valcount.Add(1)
 			}
-		}(i)
-	}
-
-	group.Broadcasting(100 * time.Millisecond)
-	if valcount.Count() != 12*12-12 { // number of channels * number of messages - number of channels
-		t.Fatal("not all messages broadcasted")
-	}
-}
-
-// Create new broadcast group.
-// Join 12 members.
-// Broadcast one integer from each member.
-func TestBroadcastFromMember(t *testing.T) {
-	var valcount Adder
-	valcount.count = 0
-
-	group := NewGroup()
-
-	for i := 1; i <= 12; i++ {
-		go func(i int, group *Group) {
-			m := group.Join()
-			m.Send(i)
-
-			for {
-				val := m.Recv()
-				if val.(int) == i {
-					t.Fatal("sent value was received by sender")
-				}
-				valcount.Add(1)
+			channel <- true
+			val := m.Recv()
+			if val != "done" {
+				t.Fatal("incorrect message received")
 			}
-		}(i, group)
+			channel <- true
+		}(i, group, c, m)
 	}
 
-	group.Broadcasting(100 * time.Millisecond)
-	if valcount.Count() != 12*12-12 { // number of channels * number of messages - number of channels
-		t.Fatal("not all messages broadcasted")
+	go group.Broadcast(0)
+	for _, channel := range channels {
+		<-channel
+	}
+	group.Send("done")
+	for _, channel := range channels {
+		<-channel
 	}
 }
 
@@ -127,27 +92,30 @@ func TestBroadcastFromMember(t *testing.T) {
 // Join 12 members.
 // Make group broadcast to all group members.
 func TestGroupBroadcast(t *testing.T) {
-	var valcount Adder
-	valcount.count = 0
-
 	group := NewGroup()
+	var channels []chan bool
+	max := 12
 
-	for i := 1; i <= 12; i++ {
-		go func(i int, group *Group) {
-			m := group.Join()
-			if val := m.Recv(); val != "group message" {
-				t.Fatal("incorrect message received")
-			}
-			valcount.Add(1)
-		}(i, group)
+	for i := 0; i <= max; i++ {
+		c := make(chan bool)
+		channels = append(channels, c)
 	}
 
-	go group.Broadcasting(200 * time.Millisecond)
-	group.Send("group message")
-	time.Sleep(150 * time.Millisecond)
+	for i, c := range channels {
+		m := group.Join()
+		go func(i int, group *Group, channel chan bool, member *Member) {
+			val := m.Recv()
+			if val != "group message" {
+				t.Fatal("incorrect message received")
+			}
+			channel <- true
+		}(i, group, c, m)
+	}
 
-	if valcount.Count() != 12 {
-		t.Fatal("not all messages broadcasted")
+	go group.Broadcast(0)
+	group.Send("group message")
+	for _, channel := range channels {
+		<-channel
 	}
 }
 
@@ -156,25 +124,38 @@ func TestGroupBroadcast(t *testing.T) {
 // Make group broadcast to all members.
 func TestBroadcastOnLargeNumberOfMembers(t *testing.T) {
 	const max = 128
-	var valcount Adder
-	valcount.count = 0
+	var channels []chan *set.Set
+	var members []*Member
+	expected := set.New()
 
 	group := NewGroup()
-	for i := 1; i <= max; i++ {
-		go func(i int, group *Group) {
-			m := group.Join() // here is the problem
-			m.Send(i)
-			for {
-				if val := m.Recv(); val.(int) == i {
-					t.Fatal("sent value should not received by sender")
-				}
-				valcount.Add(1)
-			}
-		}(i, group)
+	for i := 0; i <= max; i++ {
+		expected.Add(i)
+		m := group.Join()
+		members = append(members, m)
 	}
-
-	group.Broadcasting(1 * time.Second)
-	if valcount.Count() != max*max-max { // number of channels * number of messages - number of channels
-		t.Fatalf("not all messages broadcasted (%d/%d)", valcount.Count(), max*max-max)
+	for i, member := range members {
+		c := make(chan *set.Set)
+		channels = append(channels, c)
+		go func(i int, group *Group, channel chan *set.Set, m *Member) {
+			m.Send(i)
+			encountered := set.New()
+			encountered.Add(i) // The message sent by this member wont be received
+			for {
+				newValue := m.Recv()
+				if encountered.Has(newValue) {
+					t.Fatal("Received duplicate value")
+				}
+				encountered.Add(newValue)
+				if encountered.IsEqual(expected) {
+					break
+				}
+			}
+			channel <- encountered
+		}(i, group, c, member)
+	}
+	go group.Broadcast(0)
+	for _, channel := range channels {
+		<-channel
 	}
 }
