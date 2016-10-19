@@ -61,4 +61,6 @@ Library licensed under BSD 3-clause license. See LICENSE.
 Project status [![Build Status](https://img.shields.io/travis/grafov/bcast/master.svg?style=flat)](https://travis-ci.org/grafov/bcast)
 --------------
 
+WIP again. There is bug found (see #12) and some possible improvements are waiting for review (#9).
+
 API is stable. No major changes planned, maybe small improvements.
