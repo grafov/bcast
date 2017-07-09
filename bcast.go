@@ -83,6 +83,7 @@ func (g *Group) Leave(leaving *Member) error {
 		}
 	}
 	if memberIndex == -1 {
+		g.memberLock.Unlock()
 		return errors.New("Could not find provided memeber for removal")
 	}
 	g.members = append(g.members[:memberIndex], g.members[memberIndex+1:]...)
