@@ -51,7 +51,10 @@ Install
 
 `go get github.com/grafov/bcast`
 
-No external dependencies beside standard packages.
+The library doesn't require external packages for build. The next
+package required if you want to run unit tests:
+
+`gopkg.in/fatih/set.v0`
 
 License
 -------
