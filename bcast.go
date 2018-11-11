@@ -178,6 +178,7 @@ func (m *Member) listen() {
 		case message := <-m.send:
 			m.handleMessage(&message)
 		case <-m.close:
+			close(m.Read)
 			return
 		}
 	}
