@@ -84,11 +84,12 @@ func (g *Group) Leave(leaving *Member) error {
 	}
 	if memberIndex == -1 {
 		g.memberLock.Unlock()
-		return errors.New("Could not find provided memeber for removal")
+		return errors.New("Could not find provided member for removal")
 	}
 	g.members = append(g.members[:memberIndex], g.members[memberIndex+1:]...)
 	leaving.close <- true // TODO: need to handle the case where there
-	leaving.Close()
+	close(leaving.Read)
+
 	// is still stuff in this Members priorityQueue
 	g.memberLock.Unlock()
 	return nil
@@ -161,7 +162,6 @@ func (g *Group) Send(val interface{}) {
 // and closes Read channel.
 func (m *Member) Close() {
 	m.group.Leave(m)
-	close(m.Read)
 }
 
 // Send broadcasts a message from one Member to the channels of all
