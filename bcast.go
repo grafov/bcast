@@ -72,7 +72,7 @@ func (g *Group) Join() *Member {
 	return g.Add(memberChannel)
 }
 
-// Leave removes the provided member from the group
+// Leave removes the provided member from the group and closes him
 func (g *Group) Leave(leaving *Member) error {
 	g.memberLock.Lock()
 	memberIndex := -1
@@ -84,10 +84,12 @@ func (g *Group) Leave(leaving *Member) error {
 	}
 	if memberIndex == -1 {
 		g.memberLock.Unlock()
-		return errors.New("Could not find provided memeber for removal")
+		return errors.New("Could not find provided member for removal")
 	}
 	g.members = append(g.members[:memberIndex], g.members[memberIndex+1:]...)
 	leaving.close <- true // TODO: need to handle the case where there
+	close(leaving.Read)
+
 	// is still stuff in this Members priorityQueue
 	g.memberLock.Unlock()
 	return nil
@@ -156,7 +158,8 @@ func (g *Group) Send(val interface{}) {
 	g.in <- Message{sender: nil, payload: val}
 }
 
-// Close removes the member it is called on from its broadcast group.
+// Close removes the member it is called on from its broadcast group
+// and closes Read channel.
 func (m *Member) Close() {
 	m.group.Leave(m)
 }
